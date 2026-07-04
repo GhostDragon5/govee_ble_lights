@@ -42,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     address = entry.unique_id
     assert address is not None
-    ble_device = bluetooth.async_ble_device_from_address(hass, address.upper(), True)
+    ble_device = bluetooth.async_ble_device_from_address(hass, address.upper(), False)
     if not ble_device:
         raise ConfigEntryNotReady(
             f"Could not find Govee BLE device with address {address}"
