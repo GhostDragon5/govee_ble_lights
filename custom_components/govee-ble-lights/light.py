@@ -159,6 +159,7 @@ class GoveeBluetoothLight(LightEntity):
         # Tracks whether we currently have an active notification subscription,
         # so _register_notifications can stop the old one before re-subscribing.
         self._notifications_active = False
+        self._connected_event = asyncio.Event()
 
         # Create device info for Home Assistant
         self._attr_device_info = DeviceInfo(
@@ -344,6 +345,13 @@ class GoveeBluetoothLight(LightEntity):
         """
         return self._mac.replace(":", "")
 
+    async def _ensure_connected(self) -> None:
+        """Wait for a BLE connection before sending commands."""
+
+        if self._client is None:
+            await self._connected_event.wait()
+        await self._ensure_connected()
+
     @property
     def brightness(self):
         """
@@ -397,10 +405,7 @@ class GoveeBluetoothLight(LightEntity):
         activates with the effect already loaded.
         """
         # Ensure device is connected
-        if self._client is None:
-            raise ConnectionError(
-                "This device has not been connected yet. Is it in range?"
-            )
+        await self._ensure_connected()
 
         # Send power-on first, unless we're setting an effect
         # Effect data should be loaded before activation
@@ -786,6 +791,7 @@ class GoveeBluetoothLight(LightEntity):
                 self._client = await GoveeBLE.create_connection(
                     self._ble_device, self.unique_id, self.hass
                 )
+                self._connected_event.set()
             except Exception:
                 # Wait before retrying
                 await asyncio.sleep(1)
