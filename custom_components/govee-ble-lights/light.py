@@ -348,9 +348,9 @@ class GoveeBluetoothLight(LightEntity):
     async def _ensure_connected(self) -> None:
         """Wait for a BLE connection before sending commands."""
 
-        if self._client is None:
+        while not (self._client and getattr(self._client, "is_connected", False)):
             await self._connected_event.wait()
-        await self._ensure_connected()
+            self._connected_event.clear()
 
     @property
     def brightness(self):
@@ -558,10 +558,7 @@ class GoveeBluetoothLight(LightEntity):
         It clears the current effect and state.
         """
         # Ensure device is connected
-        if self._client is None:
-            raise ConnectionError(
-                "This device has not been connected yet. Is it in range?"
-            )
+        await self._ensure_connected()
 
         # Send power-off command
         await GoveeBLE.send_single_packet(
@@ -759,6 +756,7 @@ class GoveeBluetoothLight(LightEntity):
         transport. GATT subscriptions are destroyed on disconnect so this restores
         the notification channel that _process_notification depends on.
         """
+        self._connected_event.set()
         try:
             await self._register_notifications()
             await self._request_device_state()
